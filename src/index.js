@@ -97,9 +97,10 @@ function visitCodeBlock(ast, vFile, isSimple) {
     let newNode;
 
     // If this codeblock is not mermaid, bail.
-    if (lang !== 'mermaid') {
+    if (!(/mermaid\b/.test(lang))) {
       return node;
     }
+    const isComment = /\bcomment/.test(lang);
 
     // Are we just transforming to a <div>, or replacing with an image?
     if (isSimple) {
@@ -113,7 +114,7 @@ function visitCodeBlock(ast, vFile, isSimple) {
       try {
         graphSvgFilename = render(value, destinationDir);
 
-        vFile.info(`${lang} code block replaced with graph`, position, PLUGIN_NAME);
+        if (!isComment) vFile.info(`${lang} code block replaced with graph`, position, PLUGIN_NAME);
       } catch (error) {
         vFile.message(error, position, PLUGIN_NAME);
         return node;
@@ -127,6 +128,17 @@ function visitCodeBlock(ast, vFile, isSimple) {
     }
 
     parent.children.splice(index, 1, newNode);
+
+    if (isComment) {
+      parent.children.splice(index, 0, {
+        type: 'html',
+        value: `<!--
+\`\`\`${lang}
+${value}
+\`\`\`
+-->`
+      });
+    }
 
     return node;
   });
