@@ -1,6 +1,7 @@
 const path = require('path');
 const parse = require('remark-parse');
 const stringify = require('remark-stringify');
+const vfile = require('vfile');
 const toVFile = require('to-vfile');
 const unified = require('unified');
 const mermaid = require('../src/');
@@ -48,9 +49,38 @@ describe('remark-mermaid', () => {
 
     const result = remark().use(mermaid).processSync(vfile).toString();
     expect(result).toMatch(/!\[\]\(\.\/\w+\.svg/);
-    expect(result).toMatch(/<!--/);
+    expect(result).toMatch(/graph LR/);
+    expect(result).toMatch(/style="display:none"/);
+    expectFixedPoint(srcFile);
   });
 
+
+  it('can handle code blocks, putting the svg inline', () => {
+    const srcFile = `${fixturesDir}/code-block-inline.md`;
+    const destFile = `${runtimeDir}/code-block-inline.md`;
+    const vfile = toVFile.readSync(srcFile);
+    addMetadata(vfile, destFile);
+
+    const result = remark().use(mermaid).processSync(vfile).toString();
+    expect(result).toMatch(/<svg/);
+    expectFixedPoint(srcFile);
+  });
+
+  function expectFixedPoint(srcFile) {
+    const destFile = `${runtimeDir}/first-output.md`;
+    const destFile2 = `${runtimeDir}/second-pass.md`;
+    const vfileOne = toVFile.readSync(srcFile);
+    addMetadata(vfileOne, destFile);
+
+    const result = remark().use(mermaid).processSync(vfileOne).toString();
+
+    const vfileAgain = vfile(result);
+    addMetadata(vfileAgain, destFile2);
+
+    const resultAgain = remark().use(mermaid).processSync(vfileAgain).toString();
+
+    expect(result).toEqual(resultAgain);
+  }
 
   it('can handle mermaid images', () => {
     const srcFile = `${fixturesDir}/image-mermaid.md`;

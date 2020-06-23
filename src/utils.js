@@ -33,6 +33,14 @@ function render(source, destination) {
   return `./${svgFilename}`;
 }
 
+function renderToSvgString(source, destination) {
+  const fname = render(source, destination);
+  const svgPath = path.join(destination, fname);
+  const svg = fs.readFileSync(svgPath);
+  fs.removeSync(svgPath);
+  return svg;
+}
+
 /**
  * Accepts the `source` of the graph as a string, and render an SVG using
  * mermaid.cli. Returns the path to the rendered SVG.
@@ -88,5 +96,6 @@ module.exports = {
   createMermaidDiv,
   getDestinationDir,
   render,
+  renderToSvgString,
   renderFromFile,
 };

@@ -6,6 +6,7 @@ const render = utils.render;
 const renderFromFile = utils.renderFromFile;
 const getDestinationDir = utils.getDestinationDir;
 const createMermaidDiv = utils.createMermaidDiv;
+const renderToSvgString = utils.renderToSvgString;
 
 const PLUGIN_NAME = 'remark-mermaid';
 
@@ -101,6 +102,7 @@ function visitCodeBlock(ast, vFile, isSimple) {
       return node;
     }
     const isComment = /\bcomment/.test(lang);
+    const isInline = /\binline/.test(lang);
 
     // Are we just transforming to a <div>, or replacing with an image?
     if (isSimple) {
@@ -108,6 +110,11 @@ function visitCodeBlock(ast, vFile, isSimple) {
 
       vFile.info(`${lang} code block replaced with div`, position, PLUGIN_NAME);
 
+    } else if (isInline) {
+      newNode = {
+        type: 'html',
+        value: renderToSvgString(value, destinationDir),
+      };
     // Otherwise, let's try and generate a graph!
     } else {
       let graphSvgFilename;
@@ -132,11 +139,11 @@ function visitCodeBlock(ast, vFile, isSimple) {
     if (isComment) {
       parent.children.splice(index, 0, {
         type: 'html',
-        value: `<!--
+        value: `<div class="mermaid-source" style="display:none">
 \`\`\`${lang}
 ${value}
 \`\`\`
--->`
+</div>`
       });
     }
 
