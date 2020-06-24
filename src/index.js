@@ -125,13 +125,13 @@ function visitCodeBlock(ast, vFile, isSimple) {
     parent.children.splice(index, 1, newNode);
 
     if (isComment) {
-      parent.children.splice(index, 0, {
+      parent.children.splice(index + 1, 0, {
         type: 'html',
-        value: `<![CDATA[
+        value: `<details><summary>Mermaid source</summary>
 \`\`\`${lang}
 ${value}
 \`\`\`
-]]>`
+</details>`
       });
     }
 
