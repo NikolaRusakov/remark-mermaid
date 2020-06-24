@@ -66,6 +66,20 @@ describe('remark-mermaid', () => {
     expectFixedPoint(srcFile);
   });
 
+  it('can handle code blocks, with both inline and comment applied', () => {
+    const srcFile = `${fixturesDir}/code-block-comment-inline.md`;
+    const destFile = `${runtimeDir}/code-block-comment-inline.md`;
+    const vfile = toVFile.readSync(srcFile);
+    addMetadata(vfile, destFile);
+
+    const result = remark().use(mermaid).processSync(vfile).toString();
+    expect(result).toMatch(/<svg/);
+    expect(result).toMatch(/graph LR/);
+    expect(result).toMatch(/style="display:none"/);
+    expectFixedPoint(srcFile);
+  });
+
+
   function expectFixedPoint(srcFile) {
     const destFile = `${runtimeDir}/first-output.md`;
     const destFile2 = `${runtimeDir}/second-pass.md`;
