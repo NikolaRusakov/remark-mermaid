@@ -80,6 +80,16 @@ function replaceLinkWithEmbedded(node, index, parent, vFile) {
   return node;
 }
 
+function alreadyInsideMermaidSummary(parent, index) {
+  if (index + 1 >= parent.children.length || index - 1 < 0) return false;
+  const prev = parent.children[index - 1];
+  const next = parent.children[index + 1];
+  return (
+    next.type === 'html' && next.value === '</details>' &&
+    prev.type === 'html' && prev.value === '<details><summary>Mermaid source</summary>'
+  );
+}
+
 /**
  * Given the MDAST ast, look for all fenced codeblocks that have a language of
  * `mermaid` and pass that to mermaid.cli to render the image. Replaces the
@@ -102,8 +112,14 @@ function visitCodeBlock(ast, vFile, options) {
     if (!(/mermaid\b/.test(lang))) {
       return node;
     }
+
+
     const isComment = /\bcomment/.test(lang);
     const isInline = /\binline/.test(lang);
+
+    if (isComment && alreadyInsideMermaidSummary(parent, index)) {
+      return node;
+    }
 
     // Are we just transforming to a <div>, or replacing with an image?
     if (isSimple) {
@@ -129,9 +145,11 @@ function visitCodeBlock(ast, vFile, options) {
       parent.children.splice(index + 1, 0, {
         type: 'html',
         value: `<details><summary>Mermaid source</summary>
+
 \`\`\`${lang}
 ${value}
 \`\`\`
+
 </details>`
       });
     }

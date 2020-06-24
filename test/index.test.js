@@ -50,6 +50,7 @@ describe('remark-mermaid', () => {
     const result = remark().use(mermaid).processSync(vfile).toString();
     expect(result).toMatch(/!\[\]\(\w+\.svg/);
     expect(result).toMatch(/graph LR/);
+    expect(result).toMatch(/\n```/m);
     expect(result).toMatch(/<summary>Mermaid source<\/summary>/);
     expectFixedPoint(srcFile);
   });
