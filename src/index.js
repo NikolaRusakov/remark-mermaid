@@ -6,7 +6,6 @@ const render = utils.render;
 const renderFromFile = utils.renderFromFile;
 const getDestinationDir = utils.getDestinationDir;
 const createMermaidDiv = utils.createMermaidDiv;
-const renderToSvgString = utils.renderToSvgString;
 
 const PLUGIN_NAME = 'remark-mermaid';
 
@@ -88,10 +87,12 @@ function replaceLinkWithEmbedded(node, index, parent, vFile) {
  *
  * @param {object}  ast
  * @param {vFile}   vFile
- * @param {boolean} isSimple
+ * @param {object} options
  * @return {function}
  */
-function visitCodeBlock(ast, vFile, isSimple) {
+function visitCodeBlock(ast, vFile, options) {
+  debugger;
+  const isSimple = !!options.simple;
   return visit(ast, 'code', (node, index, parent) => {
     const { lang, value, position } = node;
     const destinationDir = getDestinationDir(vFile);
@@ -112,7 +113,7 @@ function visitCodeBlock(ast, vFile, isSimple) {
     } else {
       // Otherwise, let's try and generate a graph!
       try {
-        newNode = render(value, destinationDir, { inline: isInline });
+        newNode = render(value, destinationDir, { inline: isInline, imageDir: options.imageDir });
 
         if (!isComment) vFile.info(`${lang} code block replaced with graph`, position, PLUGIN_NAME);
       } catch (error) {
@@ -146,11 +147,11 @@ ${value}
  *
  * @param {object}  ast
  * @param {vFile}   vFile
- * @param {boolean} isSimple
+ * @param {object} opts
  * @return {function}
  */
-function visitLink(ast, vFile, isSimple) {
-  if (isSimple) {
+function visitLink(ast, vFile, opts) {
+  if (opts.simple) {
     return visit(ast, 'link', (node, index, parent) => replaceLinkWithEmbedded(node, index, parent, vFile));
   }
 
@@ -164,11 +165,11 @@ function visitLink(ast, vFile, isSimple) {
  *
  * @param {object}  ast
  * @param {vFile}   vFile
- * @param {boolean} isSimple
+ * @param {object} opts
  * @return {function}
  */
-function visitImage(ast, vFile, isSimple) {
-  if (isSimple) {
+function visitImage(ast, vFile, opts) {
+  if (opts.simple) {
     return visit(ast, 'image', (node, index, parent) => replaceLinkWithEmbedded(node, index, parent, vFile));
   }
 
@@ -189,7 +190,6 @@ function visitImage(ast, vFile, isSimple) {
  * @return {function}
  */
 function mermaid(options = {}) {
-  const simpleMode = options.simple || false;
 
   /**
    * @param {object} ast MDAST
@@ -198,9 +198,9 @@ function mermaid(options = {}) {
    * @return {object}
    */
   return function transformer(ast, vFile, next) {
-    visitCodeBlock(ast, vFile, simpleMode);
-    visitLink(ast, vFile, simpleMode);
-    visitImage(ast, vFile, simpleMode);
+    visitCodeBlock(ast, vFile, options);
+    visitLink(ast, vFile, options);
+    visitImage(ast, vFile, options);
 
     if (typeof next === 'function') {
       return next(null, ast, vFile);

@@ -20,10 +20,17 @@ function render(source, destination, opts = {}) {
   const mmdcExecutable = which.sync('mmdc');
   const mmdPath = path.join(destination, `${unique}.mmd`);
   const svgFilename = `${unique}.svg`;
-  const svgPath = path.join(destination, svgFilename);
+  const svgPath = (
+    opts.imageDir ? path.join(destination, opts.imageDir, svgFilename)
+    : path.join(destination, svgFilename)
+  );
 
   // Write temporary file
   fs.outputFileSync(mmdPath, source);
+
+  if (opts.imageDir) {
+    fs.mkdirp(path.join(destination, opts.imageDir));
+  }
 
   // Invoke mermaid.cli
   execSync(`${mmdcExecutable} -i ${mmdPath} -o ${svgPath} -b transparent`);
@@ -31,7 +38,7 @@ function render(source, destination, opts = {}) {
   // Clean up temporary file
   fs.removeSync(mmdPath);
 
-  let imgUrl = `./${svgFilename}`;
+  let imgUrl = path.join(opts.imageDir || '.', svgFilename);
   if (opts.inline) {
     const contents = fs.readFileSync(svgPath);
     fs.removeSync(svgPath);
@@ -44,14 +51,6 @@ function render(source, destination, opts = {}) {
     title: '`mermaid` image',
     url: imgUrl,
   };
-}
-
-function renderToSvgString(source, destination) {
-  const fname = render(source, destination);
-  const svgPath = path.join(destination, fname);
-  const svg = fs.readFileSync(svgPath);
-  fs.removeSync(svgPath);
-  return svg;
 }
 
 /**
@@ -71,7 +70,7 @@ function renderFromFile(inputFile, destination) {
   // Invoke mermaid.cli
   execSync(`${mmdcExecutable} -i ${inputFile} -o ${svgPath} -b transparent`);
 
-  return `./${svgFilename}`;
+  return svgFilename;
 }
 
 /**
@@ -109,6 +108,5 @@ module.exports = {
   createMermaidDiv,
   getDestinationDir,
   render,
-  renderToSvgString,
   renderFromFile,
 };
