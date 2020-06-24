@@ -1,6 +1,6 @@
 # mermaid code block
 
-```mermaid inline
+```mermaid.inline
 graph LR
     Start --> Stop
 ```

@@ -50,7 +50,7 @@ describe('remark-mermaid', () => {
     const result = remark().use(mermaid).processSync(vfile).toString();
     expect(result).toMatch(/!\[\]\(\.\/\w+\.svg/);
     expect(result).toMatch(/graph LR/);
-    expect(result).toMatch(/style="display:none"/);
+    expect(result).toMatch(/CDATA/);
     expectFixedPoint(srcFile);
   });
 
@@ -62,7 +62,7 @@ describe('remark-mermaid', () => {
     addMetadata(vfile, destFile);
 
     const result = remark().use(mermaid).processSync(vfile).toString();
-    expect(result).toMatch(/<svg/);
+    expect(result).toMatch(/data:image\/svg/);
     expectFixedPoint(srcFile);
   });
 
@@ -73,9 +73,9 @@ describe('remark-mermaid', () => {
     addMetadata(vfile, destFile);
 
     const result = remark().use(mermaid).processSync(vfile).toString();
-    expect(result).toMatch(/<svg/);
+    expect(result).toMatch(/data:image\/svg/);
     expect(result).toMatch(/graph LR/);
-    expect(result).toMatch(/style="display:none"/);
+    expect(result).toMatch(/CDATA/);
     expectFixedPoint(srcFile);
   });
 

@@ -12,9 +12,10 @@ const PLUGIN_NAME = 'remark-mermaid';
  *
  * @param  {string} source
  * @param  {string} destination
+ * @param  {object} opts
  * @return {string}
  */
-function render(source, destination) {
+function render(source, destination, opts = {}) {
   const unique = crypto.createHmac('sha1', PLUGIN_NAME).update(source).digest('hex');
   const mmdcExecutable = which.sync('mmdc');
   const mmdPath = path.join(destination, `${unique}.mmd`);
@@ -30,7 +31,19 @@ function render(source, destination) {
   // Clean up temporary file
   fs.removeSync(mmdPath);
 
-  return `./${svgFilename}`;
+  let imgUrl = `./${svgFilename}`;
+  if (opts.inline) {
+    const contents = fs.readFileSync(svgPath);
+    fs.removeSync(svgPath);
+    const b64 = Buffer.from(contents).toString('base64');
+    imgUrl = `data:image/svg+xml;base64,${b64}`;
+  }
+  debugger;
+  return {
+    type: 'image',
+    title: '`mermaid` image',
+    url: imgUrl,
+  };
 }
 
 function renderToSvgString(source, destination) {

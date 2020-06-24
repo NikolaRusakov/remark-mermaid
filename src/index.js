@@ -109,17 +109,10 @@ function visitCodeBlock(ast, vFile, isSimple) {
       newNode = createMermaidDiv(value);
 
       vFile.info(`${lang} code block replaced with div`, position, PLUGIN_NAME);
-
-    } else if (isInline) {
-      newNode = {
-        type: 'html',
-        value: renderToSvgString(value, destinationDir),
-      };
-    // Otherwise, let's try and generate a graph!
     } else {
-      let graphSvgFilename;
+      // Otherwise, let's try and generate a graph!
       try {
-        graphSvgFilename = render(value, destinationDir);
+        newNode = render(value, destinationDir, { inline: isInline });
 
         if (!isComment) vFile.info(`${lang} code block replaced with graph`, position, PLUGIN_NAME);
       } catch (error) {
@@ -127,11 +120,6 @@ function visitCodeBlock(ast, vFile, isSimple) {
         return node;
       }
 
-      newNode = {
-        type: 'image',
-        title: '`mermaid` image',
-        url: graphSvgFilename,
-      };
     }
 
     parent.children.splice(index, 1, newNode);
@@ -139,11 +127,11 @@ function visitCodeBlock(ast, vFile, isSimple) {
     if (isComment) {
       parent.children.splice(index, 0, {
         type: 'html',
-        value: `<div class="mermaid-source" style="display:none">
+        value: `<![CDATA[
 \`\`\`${lang}
 ${value}
 \`\`\`
-</div>`
+]]>`
       });
     }
 
