@@ -55,6 +55,17 @@ describe('remark-mermaid', () => {
     expectFixedPoint(srcFile);
   });
 
+  it('updates the outdated images', () => {
+    const srcFile = `${fixturesDir}/outdated-comment.md`;
+    const destFile = `${runtimeDir}/outdated-comment.md`;
+    const vfile = toVFile.readSync(srcFile);
+    addMetadata(vfile, destFile);
+
+    const result = remark().use(mermaid).processSync(vfile).toString();
+    expect(result).not.toMatch(/db3c1050564eea0d99f028979a7a2218aa4fa581\.svg/);
+    expect(result.match(/<summary>/g)).toHaveLength(1);
+    expectFixedPoint(srcFile);
+  });
 
   it('can handle code blocks, putting the svg inline', () => {
     const srcFile = `${fixturesDir}/code-block-inline.md`;

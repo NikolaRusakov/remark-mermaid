@@ -6,6 +6,7 @@ const render = utils.render;
 const renderFromFile = utils.renderFromFile;
 const getDestinationDir = utils.getDestinationDir;
 const createMermaidDiv = utils.createMermaidDiv;
+const uniqueName = utils.uniqueName;
 
 const PLUGIN_NAME = 'remark-mermaid';
 
@@ -80,14 +81,24 @@ function replaceLinkWithEmbedded(node, index, parent, vFile) {
   return node;
 }
 
-function alreadyInsideMermaidSummary(parent, index) {
-  if (index + 1 >= parent.children.length || index - 1 < 0) return false;
-  const prev = parent.children[index - 1];
-  const next = parent.children[index + 1];
-  return (
-    next.type === 'html' && next.value === '</details>' &&
-    prev.type === 'html' && prev.value === '<details><summary>Mermaid source</summary>'
+function removeExistingMermaidSummary(parent, index) {
+  // delete the summary wrapper and the prefixed image.
+  // we will re-create them with more updated values
+  if (index + 1 >= parent.children.length || index - 2 < 0) return index;
+  const link = parent.children[index - 2];
+  const detailsStart = parent.children[index - 1];
+  const detailsEnd = parent.children[index + 1];
+  const nodeIsInsideSummary = (
+    detailsEnd.type === 'html' && detailsEnd.value === '</details>' &&
+    detailsStart.type === 'html' && /<details.*?><summary>Mermaid source<\/summary>/.test(detailsStart.value) &&
+    link.type === 'paragraph' && link.children.length === 1 && link.children[0].type === 'image' &&
+    link.children[0].title === "`mermaid` image"
   );
+  if (!nodeIsInsideSummary) return index;
+
+  parent.children.splice(index + 1, 1);
+  parent.children.splice(index - 2, 2);
+  return index - 2;
 }
 
 /**
@@ -101,7 +112,6 @@ function alreadyInsideMermaidSummary(parent, index) {
  * @return {function}
  */
 function visitCodeBlock(ast, vFile, options) {
-  debugger;
   const isSimple = !!options.simple;
   return visit(ast, 'code', (node, index, parent) => {
     const { lang, value, position } = node;
@@ -117,10 +127,10 @@ function visitCodeBlock(ast, vFile, options) {
     const isComment = /\bcomment/.test(lang);
     const isInline = /\binline/.test(lang);
 
-    if (isComment && alreadyInsideMermaidSummary(parent, index)) {
-      return node;
+    if (isComment) {
+      index = removeExistingMermaidSummary(parent, index);
+      if (parent.children[index] !== node) throw new Error("expected index to be correct");
     }
-
     // Are we just transforming to a <div>, or replacing with an image?
     if (isSimple) {
       newNode = createMermaidDiv(value);
@@ -144,7 +154,7 @@ function visitCodeBlock(ast, vFile, options) {
     if (isComment) {
       parent.children.splice(index + 1, 0, {
         type: 'html',
-        value: `<details><summary>Mermaid source</summary>
+        value: `<details data-mermaid-hash="${uniqueName(value)}"><summary>Mermaid source</summary>
 
 \`\`\`${lang}
 ${value}

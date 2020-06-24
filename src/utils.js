@@ -6,6 +6,10 @@ const execSync = require('child_process').execSync;
 
 const PLUGIN_NAME = 'remark-mermaid';
 
+function uniqueName(source) {
+  return crypto.createHmac('sha1', PLUGIN_NAME).update(source).digest('hex');
+}
+
 /**
  * Accepts the `source` of the graph as a string, and render an SVG using
  * mermaid.cli. Returns the path to the rendered SVG.
@@ -16,7 +20,7 @@ const PLUGIN_NAME = 'remark-mermaid';
  * @return {string}
  */
 function render(source, destination, opts = {}) {
-  const unique = crypto.createHmac('sha1', PLUGIN_NAME).update(source).digest('hex');
+  const unique = uniqueName(source);
   const mmdcExecutable = which.sync('mmdc');
   const mmdPath = path.join(destination, `${unique}.mmd`);
   const svgFilename = `${unique}.svg`;
@@ -45,7 +49,6 @@ function render(source, destination, opts = {}) {
     const b64 = Buffer.from(contents).toString('base64');
     imgUrl = `data:image/svg+xml;base64,${b64}`;
   }
-  debugger;
   return {
     type: 'image',
     title: '`mermaid` image',
@@ -109,4 +112,5 @@ module.exports = {
   getDestinationDir,
   render,
   renderFromFile,
+  uniqueName,
 };
