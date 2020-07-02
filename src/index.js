@@ -119,14 +119,12 @@ function visitCodeBlock(ast, vFile, options) {
     let newNode;
 
     // If this codeblock is not mermaid, bail.
-    if (!(/mermaid\b/.test(lang))) {
+    if (!(/\bmermaid\b/.test(lang))) {
       return node;
     }
 
 
     const isComment = /\bcomment/.test(lang);
-    const isInline = /\binline/.test(lang);
-
     if (isComment) {
       index = removeExistingMermaidSummary(parent, index);
       if (parent.children[index] !== node) throw new Error("expected index to be correct");
@@ -139,7 +137,7 @@ function visitCodeBlock(ast, vFile, options) {
     } else {
       // Otherwise, let's try and generate a graph!
       try {
-        newNode = render(value, destinationDir, { inline: isInline, imageDir: options.imageDir });
+        newNode = render(value, destinationDir, { imageDir: options.imageDir });
 
         if (!isComment) vFile.info(`${lang} code block replaced with graph`, position, PLUGIN_NAME);
       } catch (error) {
@@ -152,19 +150,24 @@ function visitCodeBlock(ast, vFile, options) {
     parent.children.splice(index, 1, newNode);
 
     if (isComment) {
-      parent.children.splice(index + 1, 0, {
-        type: 'html',
-        value: `<details data-mermaid-hash="${uniqueName(value)}"><summary>Mermaid source</summary>
-
-\`\`\`${lang}
-${value}
-\`\`\`
-
-</details>`
-      });
+      parent.children.splice(index + 1, 0,
+        {
+          type: 'html',
+          value: `<details data-mermaid-hash="${uniqueName(value)}"><summary>Mermaid source</summary>`
+        },
+        {
+          type: 'code',
+          lang,
+          value,
+        },
+        {
+          type: 'html',
+          value: `</details>`
+        });
+        index += 3;
     }
 
-    return node;
+    return index + 1;
   });
 }
 

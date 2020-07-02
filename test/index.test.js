@@ -1,3 +1,4 @@
+const fs = require('fs');
 const path = require('path');
 const parse = require('remark-parse');
 const stringify = require('remark-stringify');
@@ -64,30 +65,6 @@ describe('remark-mermaid', () => {
     const result = remark().use(mermaid).processSync(vfile).toString();
     expect(result).not.toMatch(/db3c1050564eea0d99f028979a7a2218aa4fa581\.svg/);
     expect(result.match(/<summary>/g)).toHaveLength(1);
-    expectFixedPoint(srcFile);
-  });
-
-  it('can handle code blocks, putting the svg inline', () => {
-    const srcFile = `${fixturesDir}/code-block-inline.md`;
-    const destFile = `${runtimeDir}/code-block-inline.md`;
-    const vfile = toVFile.readSync(srcFile);
-    addMetadata(vfile, destFile);
-
-    const result = remark().use(mermaid).processSync(vfile).toString();
-    expect(result).toMatch(/data:image\/svg/);
-    expectFixedPoint(srcFile);
-  });
-
-  it('can handle code blocks, with both inline and comment applied', () => {
-    const srcFile = `${fixturesDir}/code-block-comment-inline.md`;
-    const destFile = `${runtimeDir}/code-block-comment-inline.md`;
-    const vfile = toVFile.readSync(srcFile);
-    addMetadata(vfile, destFile);
-
-    const result = remark().use(mermaid).processSync(vfile).toString();
-    expect(result).toMatch(/data:image\/svg/);
-    expect(result).toMatch(/graph LR/);
-    expect(result).toMatch(/<summary>Mermaid source<\/summary>/);
     expectFixedPoint(srcFile);
   });
 
@@ -176,5 +153,46 @@ describe('remark-mermaid', () => {
       expect(result).toMatch(/!\[\]\(images\/\w+\.svg/);
       expect(vfile.messages[0].message).toBe('mermaid code block replaced with graph');
     });
+  });
+
+  it('works with two code blocks immediately in a row', () => {
+    const srcFile = `${fixturesDir}/two-code-blocks-in-a-row.md`;
+    const destFile = `${runtimeDir}/two-code-blocks-in-a-row.md`;
+    const vfile = toVFile.readSync(srcFile);
+    addMetadata(vfile, destFile);
+
+    const result = remark().use(mermaid).processSync(vfile).toString();
+    expect(result.match(/<summary>/g)).toHaveLength(2);
+    expect(result.match(/<\/summary>/g)).toHaveLength(2);
+    expect(result.match(/!\[\]\(\w+\.svg/g)).toHaveLength(2);
+
+    expectFixedPoint(srcFile);
+  });
+
+  it('works with two code blocks immediately in a row', () => {
+    const srcFile = `${fixturesDir}/two-new-code-blocks-in-a-row.md`;
+    const destFile = `${runtimeDir}/two-new-code-blocks-in-a-row.md`;
+    const vfile = toVFile.readSync(srcFile);
+    addMetadata(vfile, destFile);
+
+    const result = remark().use(mermaid).processSync(vfile).toString();
+    expect(result.match(/<summary>/g)).toHaveLength(2);
+    expect(result.match(/<\/summary>/g)).toHaveLength(2);
+    expect(result.match(/!\[\]\(\w+\.svg/g)).toHaveLength(2);
+
+    expectFixedPoint(srcFile);
+  });
+
+  it('reports error on invalid mermaid', () => {
+    const srcFile = `${fixturesDir}/invalid-mermaid.md`;
+    const destFile = `${runtimeDir}/invalid-mermaid.md`;
+    const vfile = toVFile.readSync(srcFile);
+    addMetadata(vfile, destFile);
+    const result = remark().use(mermaid).processSync(vfile).toString();
+
+    expect(vfile.messages[0].message).toMatch(/Parse error on line 2:/);
+    const runtimeFiles = fs.readdirSync(runtimeDir);
+    const mmdFiles = runtimeFiles.filter(f => /\.mmd/.test(f));
+    expect(mmdFiles).toHaveLength(0);
   });
 });

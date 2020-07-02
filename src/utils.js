@@ -36,19 +36,18 @@ function render(source, destination, opts = {}) {
     fs.mkdirp(path.join(destination, opts.imageDir));
   }
 
-  // Invoke mermaid.cli
-  execSync(`${mmdcExecutable} -i ${mmdPath} -o ${svgPath} -b transparent`);
-
-  // Clean up temporary file
-  fs.removeSync(mmdPath);
-
-  let imgUrl = path.join(opts.imageDir || '.', svgFilename);
-  if (opts.inline) {
-    const contents = fs.readFileSync(svgPath);
-    fs.removeSync(svgPath);
-    const b64 = Buffer.from(contents).toString('base64');
-    imgUrl = `data:image/svg+xml;base64,${b64}`;
+  try {
+    // Invoke mermaid.cli
+    execSync(`${mmdcExecutable} -i ${mmdPath} -o ${svgPath} -b transparent`);
+  } catch (err) {
+    // rethrow with a clearer message
+    throw new Error(err.stdout);
+  } finally {
+    // Clean up temporary file
+    fs.removeSync(mmdPath);
   }
+
+  const imgUrl = path.join(opts.imageDir || '.', svgFilename);
   return {
     type: 'image',
     title: '`mermaid` image',

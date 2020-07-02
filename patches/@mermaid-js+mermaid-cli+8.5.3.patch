@@ -1,0 +1,39 @@
+diff --git a/node_modules/@mermaid-js/mermaid-cli/index.bundle.js b/node_modules/@mermaid-js/mermaid-cli/index.bundle.js
+index 8579aec..7eb3ba9 100755
+--- a/node_modules/@mermaid-js/mermaid-cli/index.bundle.js
++++ b/node_modules/@mermaid-js/mermaid-cli/index.bundle.js
+@@ -81,7 +81,7 @@ _asyncToGenerator(function* () {
+   yield page.evaluate(`document.body.style.background = '${backgroundColor}'`);
+   const definition = fs.readFileSync(input, 'utf-8');
+ 
+-  yield page.$eval('#container', function (container, definition, mermaidConfig, myCSS) {
++  const result = yield page.$eval('#container', function (container, definition, mermaidConfig, myCSS) {
+     container.textContent = definition;
+     window.mermaid.initialize(mermaidConfig);
+ 
+@@ -97,8 +97,16 @@ _asyncToGenerator(function* () {
+       head.appendChild(style);
+     }
+ 
+-    window.mermaid.init(undefined, container);
++    try {
++      window.mermaid.init(undefined, container);
++      return { status: 'success' };
++    } catch (error) {
++      return { status: 'error', error, message: error.message };
++    }
+   }, definition, mermaidConfig, myCSS);
++  if (result.status === 'error') {
++    error(result.message);
++  }
+ 
+   if (output.endsWith('svg')) {
+     const svg = yield page.$eval('#container', function (container) {
+@@ -116,6 +124,5 @@ _asyncToGenerator(function* () {
+     // pdf
+     yield page.pdf({ path: output, printBackground: backgroundColor !== 'transparent' });
+   }
+-
+-  browser.close();
++  yield browser.close();
+ })();
