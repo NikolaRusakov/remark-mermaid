@@ -41,7 +41,14 @@ function render(source, destination, opts = {}) {
     execSync(`${mmdcExecutable} -i ${mmdPath} -o ${svgPath} -b transparent`);
   } catch (err) {
     // rethrow with a clearer message
-    throw new Error(err.stdout);
+    throw `In compiling the following diagram
+=========
+${source}
+=========
+
+mermaid encounted the following error:
+${err.stdout}
+The code-block was left as-is in your file.`;
   } finally {
     // Clean up temporary file
     fs.removeSync(mmdPath);
