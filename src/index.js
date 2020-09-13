@@ -6,6 +6,7 @@ const render = utils.render;
 const renderFromFile = utils.renderFromFile;
 const getDestinationDir = utils.getDestinationDir;
 const createMermaidDiv = utils.createMermaidDiv;
+const uniqueName = utils.uniqueName;
 
 const PLUGIN_NAME = 'remark-mermaid';
 
@@ -80,6 +81,26 @@ function replaceLinkWithEmbedded(node, index, parent, vFile) {
   return node;
 }
 
+function removeExistingMermaidSummary(parent, index) {
+  // delete the summary wrapper and the prefixed image.
+  // we will re-create them with more updated values
+  if (index + 1 >= parent.children.length || index - 2 < 0) return index;
+  const link = parent.children[index - 2];
+  const detailsStart = parent.children[index - 1];
+  const detailsEnd = parent.children[index + 1];
+  const nodeIsInsideSummary = (
+    detailsEnd.type === 'html' && detailsEnd.value === '</details>' &&
+    detailsStart.type === 'html' && /<details.*?><summary>Mermaid source<\/summary>/.test(detailsStart.value) &&
+    link.type === 'paragraph' && link.children.length === 1 && link.children[0].type === 'image' &&
+    link.children[0].title === "`mermaid` image"
+  );
+  if (!nodeIsInsideSummary) return index;
+
+  parent.children.splice(index + 1, 1);
+  parent.children.splice(index - 2, 2);
+  return index - 2;
+}
+
 /**
  * Given the MDAST ast, look for all fenced codeblocks that have a language of
  * `mermaid` and pass that to mermaid.cli to render the image. Replaces the
@@ -87,48 +108,66 @@ function replaceLinkWithEmbedded(node, index, parent, vFile) {
  *
  * @param {object}  ast
  * @param {vFile}   vFile
- * @param {boolean} isSimple
+ * @param {object} options
  * @return {function}
  */
-function visitCodeBlock(ast, vFile, isSimple) {
+function visitCodeBlock(ast, vFile, options) {
+  const isSimple = !!options.simple;
   return visit(ast, 'code', (node, index, parent) => {
     const { lang, value, position } = node;
     const destinationDir = getDestinationDir(vFile);
     let newNode;
 
     // If this codeblock is not mermaid, bail.
-    if (lang !== 'mermaid') {
+    if (!(/\bmermaid\b/.test(lang))) {
       return node;
     }
 
+
+    const isComment = /\bcomment/.test(lang);
+    if (isComment) {
+      index = removeExistingMermaidSummary(parent, index);
+      if (parent.children[index] !== node) throw new Error("expected index to be correct");
+    }
     // Are we just transforming to a <div>, or replacing with an image?
     if (isSimple) {
       newNode = createMermaidDiv(value);
 
       vFile.info(`${lang} code block replaced with div`, position, PLUGIN_NAME);
-
-    // Otherwise, let's try and generate a graph!
     } else {
-      let graphSvgFilename;
+      // Otherwise, let's try and generate a graph!
       try {
-        graphSvgFilename = render(value, destinationDir);
+        newNode = render(value, destinationDir, { imageDir: options.imageDir });
 
-        vFile.info(`${lang} code block replaced with graph`, position, PLUGIN_NAME);
+        if (!isComment) vFile.info(`${lang} code block replaced with graph`, position, PLUGIN_NAME);
       } catch (error) {
         vFile.message(error, position, PLUGIN_NAME);
         return node;
       }
 
-      newNode = {
-        type: 'image',
-        title: '`mermaid` image',
-        url: graphSvgFilename,
-      };
     }
 
     parent.children.splice(index, 1, newNode);
 
-    return node;
+    if (isComment) {
+      parent.children.splice(index + 1, 0,
+        {
+          type: 'html',
+          value: `<details data-mermaid-hash="${uniqueName(value)}"><summary>Mermaid source</summary>`
+        },
+        {
+          type: 'code',
+          lang,
+          value,
+        },
+        {
+          type: 'html',
+          value: `</details>`
+        });
+        index += 3;
+    }
+
+    return index + 1;
   });
 }
 
@@ -139,11 +178,11 @@ function visitCodeBlock(ast, vFile, isSimple) {
  *
  * @param {object}  ast
  * @param {vFile}   vFile
- * @param {boolean} isSimple
+ * @param {object} opts
  * @return {function}
  */
-function visitLink(ast, vFile, isSimple) {
-  if (isSimple) {
+function visitLink(ast, vFile, opts) {
+  if (opts.simple) {
     return visit(ast, 'link', (node, index, parent) => replaceLinkWithEmbedded(node, index, parent, vFile));
   }
 
@@ -157,11 +196,11 @@ function visitLink(ast, vFile, isSimple) {
  *
  * @param {object}  ast
  * @param {vFile}   vFile
- * @param {boolean} isSimple
+ * @param {object} opts
  * @return {function}
  */
-function visitImage(ast, vFile, isSimple) {
-  if (isSimple) {
+function visitImage(ast, vFile, opts) {
+  if (opts.simple) {
     return visit(ast, 'image', (node, index, parent) => replaceLinkWithEmbedded(node, index, parent, vFile));
   }
 
@@ -182,7 +221,6 @@ function visitImage(ast, vFile, isSimple) {
  * @return {function}
  */
 function mermaid(options = {}) {
-  const simpleMode = options.simple || false;
 
   /**
    * @param {object} ast MDAST
@@ -191,9 +229,9 @@ function mermaid(options = {}) {
    * @return {object}
    */
   return function transformer(ast, vFile, next) {
-    visitCodeBlock(ast, vFile, simpleMode);
-    visitLink(ast, vFile, simpleMode);
-    visitImage(ast, vFile, simpleMode);
+    visitCodeBlock(ast, vFile, options);
+    visitLink(ast, vFile, options);
+    visitImage(ast, vFile, options);
 
     if (typeof next === 'function') {
       return next(null, ast, vFile);

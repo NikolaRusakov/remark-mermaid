@@ -6,31 +6,60 @@ const execSync = require('child_process').execSync;
 
 const PLUGIN_NAME = 'remark-mermaid';
 
+function uniqueName(source) {
+  return crypto.createHmac('sha1', PLUGIN_NAME).update(source).digest('hex');
+}
+
 /**
  * Accepts the `source` of the graph as a string, and render an SVG using
  * mermaid.cli. Returns the path to the rendered SVG.
  *
  * @param  {string} source
  * @param  {string} destination
+ * @param  {object} opts
  * @return {string}
  */
-function render(source, destination) {
-  const unique = crypto.createHmac('sha1', PLUGIN_NAME).update(source).digest('hex');
+function render(source, destination, opts = {}) {
+  const unique = uniqueName(source);
   const mmdcExecutable = which.sync('mmdc');
   const mmdPath = path.join(destination, `${unique}.mmd`);
   const svgFilename = `${unique}.svg`;
-  const svgPath = path.join(destination, svgFilename);
+  const svgPath = (
+    opts.imageDir ? path.join(destination, opts.imageDir, svgFilename)
+    : path.join(destination, svgFilename)
+  );
 
   // Write temporary file
   fs.outputFileSync(mmdPath, source);
 
-  // Invoke mermaid.cli
-  execSync(`${mmdcExecutable} -i ${mmdPath} -o ${svgPath} -b transparent`);
+  if (opts.imageDir) {
+    fs.mkdirp(path.join(destination, opts.imageDir));
+  }
 
-  // Clean up temporary file
-  fs.removeSync(mmdPath);
+  try {
+    // Invoke mermaid.cli
+    execSync(`${mmdcExecutable} -i ${mmdPath} -o ${svgPath} -b transparent`);
+  } catch (err) {
+    // rethrow with a clearer message
+    throw `In compiling the following diagram
+=========
+${source}
+=========
 
-  return `./${svgFilename}`;
+mermaid encounted the following error:
+${err.stdout}
+The code-block was left as-is in your file.`;
+  } finally {
+    // Clean up temporary file
+    fs.removeSync(mmdPath);
+  }
+
+  const imgUrl = path.join(opts.imageDir || '.', svgFilename);
+  return {
+    type: 'image',
+    title: '`mermaid` image',
+    url: imgUrl,
+  };
 }
 
 /**
@@ -50,7 +79,7 @@ function renderFromFile(inputFile, destination) {
   // Invoke mermaid.cli
   execSync(`${mmdcExecutable} -i ${inputFile} -o ${svgPath} -b transparent`);
 
-  return `./${svgFilename}`;
+  return svgFilename;
 }
 
 /**
@@ -89,4 +118,5 @@ module.exports = {
   getDestinationDir,
   render,
   renderFromFile,
+  uniqueName,
 };
