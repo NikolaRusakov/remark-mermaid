@@ -42,6 +42,7 @@ See this project's [fixtures](test/fixtures) for more examples.
 ### Options
 
 - `simple`: when set to `true`, plugin will wrap mermaid graphs in an `<div class="mermaid">` element instead of generating an SVG. Defaults to `false`.
+- `imageDir`: when relative directory is set, writes rendered image to relative folder (imagine image renders in `<<root>>/src/` but an application requires the image to be saved in `<<root>>/` ).
 
 ## Example
 
